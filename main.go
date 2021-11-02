@@ -28,16 +28,32 @@ func GetCrt() []string {
 	return glob
 }
 
+func ExecCertmgr(success int,value string) int{
+	cmd := exec.Command("cmd", "/c", "certmgr.exe -c -add "+value+" -s root")
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		return success
+	}
+	go func() {
+		//如果有多证书就安装第一个
+		defer stdinPipe.Close()
+		io.WriteString(stdinPipe, string(1))
+	}()
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		println(err.Error())
+		return success
+	}
+	success++
+	return success
+}
+
 // Certmgr 写入证书到根
 func Certmgr(glob []string) int {
 	success := 0
 	for _, value := range glob {
-		cmd := exec.Command("cmd", "/c", "certmgr.exe -c -add "+value+" -s root")
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		err := cmd.Run()
-		if err == nil {
-			success++
-		}
+		success=ExecCertmgr(success,value)
 	}
 	return success
 }
