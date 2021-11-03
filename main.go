@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Xuanwo/go-locale"
 	"github.com/flopp/go-findfont"
 	"io"
 	"io/ioutil"
@@ -28,8 +29,12 @@ func GetCrt() []string {
 	return glob
 }
 
-func ExecCertmgr(success int,value string) int{
-	cmd := exec.Command("cmd", "/c", "certmgr.exe -c -add "+value+" -s root")
+func ExecCertmgr(success int, value string) int {
+	wd, err := os.Getwd()
+	if err != nil {
+		return 0
+	}
+	cmd := exec.Command("cmd", "/c", wd+"\\certmgr\\certmgr.exe -c -add "+value+" -s root")
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
 		return success
@@ -53,7 +58,7 @@ func ExecCertmgr(success int,value string) int{
 func Certmgr(glob []string) int {
 	success := 0
 	for _, value := range glob {
-		success=ExecCertmgr(success,value)
+		success = ExecCertmgr(success, value)
 	}
 	return success
 }
@@ -100,7 +105,7 @@ func ReadLine(filePth string, hookfn func([]byte)) error {
 
 	bfRd := bufio.NewReader(f)
 	for {
-		line,  _, err := bfRd.ReadLine()
+		line, _, err := bfRd.ReadLine()
 		hookfn(line)    //放在错误处理前面，即使发生错误，也会处理已经读取到的数据。
 		if err != nil { //遇到任何错误立即返回，并忽略 EOF 错误信息
 			if err == io.EOF {
@@ -136,14 +141,14 @@ func SettingFirefox() {
 		//读取每行删掉有关“security.enterprise_roots.enabled”的行
 		var content string
 		err = ReadLine(file, func(bytes []byte) {
-			if !strings.Contains(string(bytes), "security.enterprise_roots.enabled")&&string(bytes)!="" {
-				content+=string(bytes)+"\n"
+			if !strings.Contains(string(bytes), "security.enterprise_roots.enabled") && string(bytes) != "" {
+				content += string(bytes) + "\n"
 			}
 		})
 		if err != nil {
 			return
 		}
-		content+="user_pref(\"security.enterprise_roots.enabled\", true);"
+		content += "user_pref(\"security.enterprise_roots.enabled\", true);"
 		//闭包，读写方式打开
 		func() {
 			openFile, err := os.OpenFile(file, os.O_RDWR, 0666)
@@ -166,15 +171,44 @@ func SettingFirefox() {
 }
 
 func main() {
+	tag, err := locale.Detect()
+	if err != nil {
+		return
+	}
+	println(tag.String())
 	SettingFont()
 	a := app.New()
-	w := a.NewWindow("安装证书")
+	w := a.NewWindow(func() string {
+		if tag.String() == "zh-CN" {
+			return "安装证书"
+		} else {
+			return "Installation certificate"
+		}
+	}())
 	glob := GetCrt()
-	label := widget.NewLabel("检测到目录内有" + strconv.Itoa(len(glob)) + "个证书")
-	button := widget.NewButton("安装证书", func() {
+	label := widget.NewLabel(func() string {
+		if tag.String() == "zh-CN" {
+			return "检测到目录内有" + strconv.Itoa(len(glob)) + "个证书"
+		} else {
+			return strconv.Itoa(len(glob)) + " certificate is detected in the directory"
+		}
+	}())
+	button := widget.NewButton(func() string {
+		if tag.String() == "zh-CN" {
+			return "安装证书"
+		} else {
+			return "Installation certificate"
+		}
+	}(), func() {
 		SettingFirefox()
 		success := Certmgr(glob)
-		dialog.ShowInformation("", "成功安装"+strconv.Itoa(success)+"个证书", w)
+		dialog.ShowInformation("", func() string {
+			if tag.String() == "zh-CN" {
+				return "成功安装"+strconv.Itoa(success)+"个证书"
+			} else {
+				return strconv.Itoa(success)+" certificates successfully installed"
+			}
+		}(), w)
 	})
 	w.SetContent(container.NewCenter(container.NewVBox(
 		label, button,
