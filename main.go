@@ -30,11 +30,7 @@ func GetCrt() []string {
 }
 
 func ExecCertmgr(success int, value string) int {
-	wd, err := os.Getwd()
-	if err != nil {
-		return 0
-	}
-	cmd := exec.Command("cmd", "/c", wd+"\\certmgr\\certmgr.exe -c -add "+value+" -s root")
+	cmd := exec.Command("cmd", "/c", ".\\certmgr\\certmgr.exe -c -add "+value+" -s root")
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
 		return success
@@ -204,9 +200,9 @@ func main() {
 		success := Certmgr(glob)
 		dialog.ShowInformation("", func() string {
 			if tag.String() == "zh-CN" {
-				return "成功安装"+strconv.Itoa(success)+"个证书"
+				return "成功安装" + strconv.Itoa(success) + "个证书"
 			} else {
-				return strconv.Itoa(success)+" certificates successfully installed"
+				return strconv.Itoa(success) + " certificates successfully installed"
 			}
 		}(), w)
 	})
